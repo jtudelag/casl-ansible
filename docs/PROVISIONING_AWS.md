@@ -12,7 +12,12 @@ In addition to _cloning this repo_, you'll need the following:
   * Fedora: `dnf install -y docker`
   * **NOTE:** If you plan to run docker as yourself (non-root), your username must be added to the `docker` user group.
 
-```
+* Although not strictly necessary, it is very handy to have the aws cli installed
+  * `pip install awscli --upgrade --user`
+  * More info [here](https://docs.aws.amazon.com/cli/latest/userguide/awscli-install-linux.html)
+
+
+```shell
 cd ~/src/
 git clone https://github.com/redhat-cop/casl-ansible.git
 ```
@@ -21,7 +26,7 @@ git clone https://github.com/redhat-cop/casl-ansible.git
 
 > **NOTE:** The target directory ( `galaxy` ) is **important** as the playbooks know to source roles and playbooks from that location.
 
-```
+```shell
 cd ~/src/casl-ansible
 ansible-galaxy install -r casl-requirements.yml -p galaxy
 ```
@@ -38,17 +43,49 @@ Cool! Now you're ready to provision OpenShift clusters on AWS
 
 As an example, we'll provision the `sample.aws.example.com` cluster defined in the `~/src/casl-ansible/inventory` directory.
 
-> **Note**: *It is recommended that you use a different inventory similar to the ones found in the `~src/casl-ansible/inventory` directory and keep it elsewhere. This allows you to update/remove/change your casl-ansble source directory without losing your inventory. Also note that it may take some effort to get the inventory just right, hence it is very beneficial to keep it around for future use without having to redo everything.*
+> **NOTE**: *It is recommended that you use a different inventory similar to the ones found in the `~src/casl-ansible/inventory` directory and keep it elsewhere. This allows you to update/remove/change your casl-ansble source directory without losing your inventory. Also note that it may take some effort to get the inventory just right, hence it is very beneficial to keep it around for future use without having to redo everything.*
 
 The following is just an example on how the `sample.aws.example.com` inventory can be used:
 
 1) Edit `~/src/casl-ansible/inventory/sample.aws.example.com.d/inventory/group_vars/all.yml` to match your AWS environment. See comments in the file for more detailed information on how to fill these in.
 
+Typically you would need to modify:
+
+```yaml
+env_id
+cloud_infrastructure
+aws_access_key #If not using env vars
+aws_secret_key #If not using env vars
+dns_domain
+rhsm* # rhsm vars according to your case (AK, Sat6, etc)
+```
+
+> **NOTE**: To know the available AZs of the region you are deploying in, run this aws cli command: `aws ec2 describe-availability-zones --region <REPLACE WITH AWS REGION>`  
+
 2) Edit `~/src/casl-ansible/inventory/sample.aws.example.com.d/inventory/group_vars/OSEv3.yml` for your AWS specific configuration. See comments in the file for more detailed information on how to fill these in.
+
+Typically you would need to modify:
+
+```yaml
+aws_access_key #If not using env vars
+aws_secret_key #If not using env vars
+```
 
 3) Run the `end-to-end` provisioning playbook via our [AWS installer container image](../images/installer-aws/).
 
+```shell
+docker run -u `id -u` \
+      -v <REPLACE WITH AWS KEYPAIR FILE PATH>:/opt/app-root/src/.ssh/id_rsa:Z \
+      -v <REPLACE WITH SRC FOLDER PATH>:/tmp/src:Z \ # Folder where casl-ansible was cloned
+      -e INVENTORY_DIR=/tmp/src/casl-ansible/inventory/sample.aws.example.com.d/inventory \
+      -e PLAYBOOK_FILE=/tmp/src/casl-ansible/playbooks/openshift/end-to-end.yml \
+      -e OPTS="-e aws_key_name=<REPLACE WITH AWS KEYPAIR NAME>" -t \
+      redhatcop/installer-aws
 ```
+
+For example:
+
+```shell
 docker run -u `id -u` \
       -v $HOME/.ssh/id_rsa:/opt/app-root/src/.ssh/id_rsa:Z \
       -v $HOME/src/:/tmp/src:Z \
@@ -58,9 +95,18 @@ docker run -u `id -u` \
       redhatcop/installer-aws
 ```
 
-> **Note 1:** The `aws_key_name` variable at the end should specify the name of your AWS keypair - as noted under AWS Specific Requirements above.
+> **NOTE 1:** The `aws_key_name` variable at the end should specify the name of your AWS keypair - as noted under AWS Specific Requirements above.
 
-> **Note 2:** The above bind-mounts will map files and source directories to the correct locations within the control host container. Update the local paths per your environment for a successful run.
+> **NOTE 2:** The above bind-mounts will map files and source directories to the correct locations within the control host container. Update the local paths per your environment for a successful run.
+
+> **NOTE 3:** Alternatively to edit both `OSEv3.yml` and `all.yml` and set your AWS credentials there, you can define them in a file and pass it to the docker command.
+```shell
+docker run -u `id -u` \
+      ...
+      --env-file $HOME/aws-creds/my-aws-access-keys.src \
+      ...
+      redhatcop/installer-aws
+```
 
 Done! Wait till the provisioning completes and you should have an operational OpenShift cluster. If something fails along the way, either update your inventory and re-run the above `end-to-end.yml` playbook, or it may be better to [delete the cluster](https://github.com/redhat-cop/casl-ansible#deleting-a-cluster) and re-start.
 
@@ -72,7 +118,7 @@ Once provisioned, a cluster may be adjusted/reconfigured as needed by updating t
 
 A cluster's Infra and App nodes may be scaled up and down by editing the following parameters in the `all.yml` file and then re-running the `end-to-end.yml` playbook as shown above.
 
-```
+```yml
 appnodes:
   count: <REPLACE WITH NUMBER OF INSTANCES TO CREATE>
 infranodes:
@@ -83,12 +129,13 @@ infranodes:
 
 A cluster can be decommissioned/deleted by re-using the same inventory with the `delete-cluster.yml` playbook found alongside the `end-to-end.yml` playbook.
 
-```
-docker run -u `id -u` \
+```shell
+docker run -it -u `id -u` \
       -v $HOME/.ssh/id_rsa:/opt/app-root/src/.ssh/id_rsa:Z \
       -v $HOME/src/:/tmp/src:Z \
       -e INVENTORY_DIR=/tmp/src/casl-ansible/inventory/sample.casl.example.com.d/inventory \
       -e PLAYBOOK_FILE=/tmp/src/casl-ansible/playbooks/openshift/delete-cluster.yml \
+      -e OPTS="-e aws_key_name=my-key-name" -t \
       redhatcop/installer-aws
 ```
 
