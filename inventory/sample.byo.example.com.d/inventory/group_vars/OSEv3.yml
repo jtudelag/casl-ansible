@@ -3,7 +3,7 @@
 deployment_type: openshift-enterprise
 openshift_deployment_type: openshift-enterprise
 openshift_master_cluster_method: native
-openshift_release: v3.10
+openshift_release: v3.11
 
 # openshift_master_cluster_public_hostname must be something like:
 #   <prefix>.{{ env_id }}.{{ dns_domain }}
@@ -40,6 +40,12 @@ os_sdn_network_plugin_name: 'redhat/openshift-ovs-networkpolicy'
 #os_sdn_network_plugin_name: 'redhat/openshift-ovs-multitenant'
 os_firewall_use_firewalld: true
 osm_cluster_network_cidr: 10.1.0.0/16
+
+# Registry URL & Credentials
+# For more info: https://access.redhat.com/terms-based-registry/
+oreg_url: 'registry.redhat.io/openshift3/ose-${component}:${version}'
+#oreg_auth_user: "{{ lookup('env', 'OREG_AUTH_USER' )}}"
+#oreg_auth_password: "{{ lookup('env', 'OREG_AUTH_PASSWORD' )}}"
 
 openshift_hosted_prometheus_deploy: false
 openshift_cfme_install_app: false

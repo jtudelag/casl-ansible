@@ -57,9 +57,9 @@ cloud_infrastructure:
 rhsm_register: True
 rhsm_repos:
  - "rhel-7-server-rpms"
- - "rhel-7-server-ose-3.10-rpms"
+ - "rhel-7-server-ose-3.11-rpms"
  - "rhel-7-server-extras-rpms"
- - "rhel-7-server-ansible-2.4-rpms"
+ - "rhel-7-server-ansible-2.6-rpms"
 
 # Use RHSM username, password and optionally pool:
 # NOTE:
@@ -97,8 +97,12 @@ openshift_master_default_subdomain: apps.{{ env_id }}.{{ dns_domain }}
 #a unique prefix (unsure for what is used)
 openshift_gcp_prefix: "{{ env_id }}"
 
-#your openshift goocle project
+#your openshift google project
 openshift_gcp_project: "{{ project_id }}"
 
 #whether your deployment is multizone.
 openshift_gcp_multizone: true
+
+#gcp network name in which OCP will be deployed
+openshift_gcp_network_name: default
+
